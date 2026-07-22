@@ -7,6 +7,8 @@ great-circle flight arcs, and a glassmorphic live-data HUD.
 - **Source:** <https://github.com/frankhouston/earth-logistics-globe>
 - **Live (GitHub Pages):** <https://frankhouston.github.io/earth-logistics-globe/>
 
+![Earth Logistics Dashboard Demo](earth_logistics_dashboard_final.gif)
+
 ```
 ├── index.html   <- the entire project lives in this one self-contained file
 ├── .gitignore
