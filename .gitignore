@@ -1,0 +1,14 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# The dashboard is one self-contained HTML file; this zip is just a
+# regenerated distribution build (produced on demand), so keep it out of git.
+*.zip
+
+# Logs
+*.log

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth · Live Logistics Globe</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#04060c;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+#c{display:block;width:100vw;height:100vh}
+#err{position:fixed;inset:0;display:none;place-items:center;z-index:99;color:#ffd0d0;background:rgba(20,0,0,.92);font:13px/1.6 monospace;padding:24px}
+#hud{position:fixed;left:24px;top:24px;z-index:10;color:#cfe0ff;font-size:13px;pointer-events:none;text-shadow:0 1px 6px #000}
+.title{font-size:17px;font-weight:700;letter-spacing:.5px;color:#fff;margin-bottom:2px}
+.sub{font-size:11px;color:#7f8da4;letter-spacing:1.2px}
+#panel{position:fixed;right:24px;top:24px;z-index:10;display:flex;flex-direction:column;gap:12px;width:220px}
+.card{backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
+  background:linear-gradient(135deg,rgba(30,50,88,.42),rgba(12,20,36,.42));
+  border:1px solid rgba(120,170,255,.22);box-shadow:0 8px 28px rgba(0,8,24,.5),inset 0 1px 0 rgba(160,200,255,.15);
+  border-radius:14px;padding:14px 16px;color:#e7f0ff;pointer-events:none}
+.card .k{font-size:10.5px;letter-spacing:1.5px;color:#8eaad4;text-transform:uppercase}
+.card .v{font-size:24px;font-weight:700;color:#fff;margin:3px 0 1px;font-variant-numeric:tabular-nums}
+.card .d{font-size:11px;color:#6fe0a8}
+.card .d.down{color:#ffb15f}
+.card .row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.spark{height:22px;margin-top:6px;display:flex;align-items:flex-end;gap:2px}
+.spark i{flex:1;background:linear-gradient(0deg,#3f7fd6,#7fd0ff);border-radius:1px;opacity:.85}
+#ticker{position:fixed;left:0;right:0;bottom:0;z-index:10;height:30px;display:flex;align-items:center;
+  background:linear-gradient(0deg,rgba(6,10,20,.85),rgba(6,10,20,0));
+  color:#9fb6da;font-size:11.5px;letter-spacing:.6px;overflow:hidden;white-space:nowrap;pointer-events:none}
+#ticker span{padding:0 26px;opacity:.85}
+#ticker .hot{color:#ffd479}
+#tag{position:fixed;left:24px;top:74px;z-index:10;color:#6fe0a8;font-size:11px;letter-spacing:1.4px;pointer-events:none}
+#tag::before{content:'● ';color:#6fe0a8;animation:bl 1.4s infinite}
+@keyframes bl{50%{opacity:.25}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="title">EARTH · LIVE LOGISTICS</div>
+  <div class="sub">23.4° AXIAL TILT · RELIEF + OCEAN GLITTER</div>
+</div>
+<div id="tag">NETWORK ONLINE</div>
+<div id="panel">
+  <div class="card">
+    <div class="row"><div><div class="k">Flights Active</div><div class="v" id="vFlights">14</div></div></div>
+    <div class="d" id="dFlights">▲ 3 vs last hr</div>
+    <div class="spark"><i style="height:40%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:75%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:70%"></i><i style="height:100%"></i></div>
+  </div>
+  <div class="card">
+    <div class="k">Freight In Transit</div>
+    <div class="v" id="vTons">—</div>
+    <div class="d" id="dTons">tonnes</div>
+  </div>
+  <div class="card">
+    <div class="k">Avg Latency</div>
+    <div class="v" id="vLat">—</div>
+    <div class="d" id="dLat">s · end-to-end</div>
+  </div>
+  <div class="card">
+    <div class="k">On-Time Rate</div>
+    <div class="v" id="vOnTime">—</div>
+    <div class="d" id="dOnTime">rolling 24h</div>
+  </div>
+</div>
+<div id="ticker">
+  <span>DXB→HKG <b class="hot">FL471 · heavy</b></span>
+  <span>GRU→LAX cargo uplifted</span>
+  <span>SIN routing detoured weather</span>
+  <span>LHR ground ops nominal</span>
+  <span>−33.9 151.2 SYD active link</span>
+  <span>NRT temperature −48°C cruise alt</span>
+  <span>hub JFK throughput 92%</span>
+</div>
+<div id="err"></div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+console.log('dashboard module start');
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+try {
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x04060c, 1);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(0, 1.6, 5.2);
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 2.6;
+  controls.maxDistance = 9;
+  controls.rotateSpeed = 0.5;
+  controls.autoRotate = false;   // the planet now spins on its own axis; camera stays a steady reference
+  controls.autoRotateSpeed = 0.5;
+
+  // ---- Earth group: 23.4° tilted axis + spin. Globe, atmosphere & flight arcs all
+  //      live here so they turn together. The sun uniform is WORLD-space, so the
+  //      day/night terminator is fixed in the world — the continents sweep through it
+  //      as the planet spins (and the tilt gives seasonal pole lighting). ----
+  const tilt = new THREE.Group(); tilt.rotation.z = THREE.MathUtils.degToRad(23.4);
+  scene.add(tilt);
+  const spin = new THREE.Group(); tilt.add(spin);
+
+  // ---- Dark globe (self-lit, double-sided so nothing blacks out) ----
+  const R = 1.5;
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(R, 64, 64),
+    new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      uniforms: {
+        uSun: { value: new THREE.Vector3(1, 0.2, 1).normalize() },
+        uNight: { value: new THREE.Color('#03040a') },
+        uDay:  { value: new THREE.Color('#16314f') },
+        uDayTex:   { value: null },
+        uNightTex: { value: null },
+        uTopoTex:  { value: null },
+        uHasDay:   { value: 0.0 },
+        uHasNight: { value: 0.0 },
+        uHasTopo:  { value: 0.0 },
+        uR:   { value: R }
+      },
+      vertexShader: `
+        varying vec3 vN, vWN, vWP, vP, vTanE, vTanN;
+        void main(){
+          vN  = normalize(normalMatrix * normal);            // view-space normal  → screen-limb rim
+          vWN = normalize(mat3(modelMatrix) * normal);       // world-space normal → sun/terminator (camera-invariant)
+          vWP = (modelMatrix * vec4(position,1.0)).xyz;     // world fragment pos → view vector
+          vP  = position;                                   // LOCAL coords → equirect UV (glued to surface as it spins)
+          // local east/north tangents (from the sphere param) → world via modelMatrix, for the topo bump
+          float h = sqrt(position.x*position.x + position.z*position.z);
+          vec3 eastL  = normalize(vec3(-position.z, 0.0, position.x));
+          vec3 northL = normalize(vec3(-position.y*position.x, max(h*h, 1e-4), -position.y*position.z));
+          vTanE = normalize(mat3(modelMatrix) * eastL);
+          vTanN = normalize(mat3(modelMatrix) * northL);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+        }`,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vN, vWN, vWP, vP, vTanE, vTanN;
+        uniform vec3 uSun, uNight, uDay;
+        uniform sampler2D uDayTex, uNightTex, uTopoTex;
+        uniform float uHasDay, uHasNight, uHasTopo, uR;
+        // local elevation for the relief bump: topo heightmap if loaded, else day-texture luminance
+        float elev(vec2 p){
+          vec3 t = uHasTopo > 0.5 ? texture2D(uTopoTex, p).rgb : (uHasDay > 0.5 ? texture2D(uDayTex, p).rgb : uDay);
+          return dot(t, vec3(0.299, 0.587, 0.114));
+        }
+        void main(){
+          vec3 wn = normalize(vWN);
+          vec3 viewN = normalize(vN);
+          vec3 worldSun = normalize(uSun);
+          // equirectangular UV from LOCAL coords → texture stays glued to the spinning surface.
+          // +lat pairs the north pole with the image TOP (fixes the upside-down Earth).
+          float lon = atan(vP.z, vP.x);
+          float lat = asin(clamp(vP.y/uR, -1.0, 1.0));
+          vec2 uv = vec2(lon/6.2831853 + 0.5, 0.5 + lat/3.14159265);
+          vec3 dayC  = texture2D(uDayTex, uv).rgb;
+          vec3 niteC = texture2D(uNightTex, uv).rgb;
+          // --- topographic relief: perturb the world normal by the elevation gradient ---
+          vec3 bumped = wn;
+          if (uHasTopo > 0.5 || uHasDay > 0.5){
+            float tx = 1.0/1024.0;
+            float h0 = elev(uv), hR = elev(uv + vec2(tx,0.0)), hU = elev(uv + vec2(0.0,tx));
+            bumped = normalize(wn - (vTanE*(hR-h0) + vTanN*(hU-h0)) * 3.0);
+          }
+          float d = dot(bumped, worldSun);
+          float term = smoothstep(-0.14, 0.18, d);                      // terminator follows the bumped relief a touch
+          float lambert = max(dot(wn, worldSun), 0.0);                  // smooth angle for the day-side shading
+          vec3 day  = mix(uDay,  dayC,  uHasDay);
+          vec3 night= mix(uNight, niteC * 2.6, uHasNight);
+          // day-side falloff toward the limb so it reads as a lit sphere, not flat-bright all over
+          day *= mix(0.35, 1.0, smoothstep(0.0, 0.6, lambert));
+          // golden twilight band along the terminator
+          float twi = smoothstep(0.30,0.5,term) - smoothstep(0.5,0.70,term);
+          night += vec3(0.45,0.24,0.08) * max(twi,0.0) * 0.35;
+          // --- ocean sun-glitter: tight specular of the sun, gated by blue-dominant water ---
+          vec3 V = normalize(cameraPosition - vWP);
+          vec3 Hr = normalize(worldSun + V);
+          float spec = pow(max(dot(wn, Hr), 0.0), 90.0);
+          float ocean = step(dayC.r, dayC.g) * step(dayC.g, dayC.b) * (1.0 - smoothstep(0.22, 0.45, dayC.r));
+          day += vec3(1.0,0.97,0.9) * spec * ocean * term * 0.9;
+          vec3 col = mix(night, day, term);
+          // atmospheric rim on the lit limb (screen-space)
+          float rim = pow(1.0 - max(dot(viewN, vec3(0,0,1)),0.0), 3.0);
+          col += vec3(0.12,0.26,0.55)*rim*term;
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    })
+  );
+  spin.add(globe);
+
+  // ---- Real Earth textures: day (blue marble) + night (city lights).
+  //      Pulled from the three-globe package, CORS-enabled via jsdelivr/unpkg.
+  //      The shader keeps a flat-color fallback while loading and if a source
+  //      fails, so the globe never goes black. ----
+  (function loadEarth(){
+    const srcs = [
+      'https://cdn.jsdelivr.net/npm/three-globe@2/example/img/',
+      'https://cdn.jsdelivr.net/npm/three-globe/example/img/',
+      'https://unpkg.com/three-globe/example/img/'
+    ];
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    const grab = (name, set) => (i) => {
+      if (i >= srcs.length) return;
+      loader.load(srcs[i] + name, tex => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        set(tex);
+      }, undefined, () => grab(name, set)(i + 1));
+    };
+    grab('earth-blue-marble.jpg', t => { globe.material.uniforms.uDayTex.value = t; globe.material.uniforms.uHasDay.value = 1.0; })(0);
+    grab('earth-night.jpg',       t => { globe.material.uniforms.uNightTex.value = t; globe.material.uniforms.uHasNight.value = 1.0; })(0);
+    grab('earth-topology.png',    t => { t.anisotropy = renderer.capabilities.getMaxAnisotropy(); globe.material.uniforms.uTopoTex.value = t; globe.material.uniforms.uHasTopo.value = 1.0; })(0);
+  })();
+
+  // ---- Atmosphere glow (additive, back-side) ----
+  const atmo = new THREE.Mesh(
+    new THREE.SphereGeometry(R*1.16, 64, 64),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexShader: `varying vec3 vN; void main(){ vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader: `varying vec3 vN; void main(){ float i=pow(1.0-max(dot(vN,vec3(0,0,1)),0.0),2.5); gl_FragColor=vec4(vec3(0.25,0.5,1.0)*i, i);}`
+    })
+  );
+  scene.add(atmo);
+
+  // ---- Star field ----
+  {
+    const g = new THREE.BufferGeometry();
+    const N=1800, p=new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      const u=Math.random()*2*Math.PI, v=Math.acos(2*Math.random()-1), r=40;
+      p[i*3]=r*Math.sin(v)*Math.cos(u); p[i*3+1]=r*Math.cos(v); p[i*3+2]=r*Math.sin(v)*Math.sin(u);
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(p,3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x9fc0ff, size:0.12, sizeAttenuation:true, transparent:true, opacity:0.8})));
+  }
+
+  // ---- Flight arcs: great-circle between hubs, glowing line + moving packet ----
+  const CITIES = {
+    JFK:[40.7,-74], LAX:[34,-118], LHR:[51.5,-0.1], FRA:[50.1,8.7], DXB:[25.2,55.3],
+    HKG:[22.3,114], SIN:[1.35,103.8], NRT:[35.7,140], SYD:[-33.9,151.2], GRU:[-23.5,-46.6]
+  };
+  function latLonToVec(lat, lon, r){
+    const la=lat*Math.PI/180, lo=lon*Math.PI/180;
+    return new THREE.Vector3(r*Math.cos(la)*Math.cos(lo), r*Math.sin(la), r*Math.cos(la)*Math.sin(lo));
+  }
+  function greatCirclePts(a, b, npts, peak){
+    const an=a.clone().normalize(), bn=b.clone().normalize();
+    const dotv=THREE.MathUtils.clamp(an.dot(bn),-1,1), th=Math.acos(dotv), st=Math.sin(th);
+    const pts=[];
+    for(let i=0;i<=npts;i++){
+      const t=i/npts;
+      let p = st<1e-4 ? an.clone().lerp(bn,t) : an.clone().multiplyScalar(Math.sin((1-t)*th)/st).add(bn.clone().multiplyScalar(Math.sin(t*th)/st));
+      const lift=Math.sin(Math.PI*t);
+      p.multiplyScalar(R + lift*peak);
+      pts.push(p);
+    }
+    return pts;
+  }
+  const arcMat = new THREE.LineBasicMaterial({ color:0x5fb8ff, transparent:true, opacity:0.45, blending:THREE.AdditiveBlending, depthWrite:false });
+  const hubMat = new THREE.MeshBasicMaterial({ color:0x9fe0ff });
+  const arcs = [];
+  const PAIRS = ['JFK>LHR','LHR>DXB','DXB>HKG','HKG>SIN','SIN>SYD','LAX>NRT','LAX>SYD','JFK>GRU','FRA>DXB','GRU>LAX','LHR>JFK','NRT>LAX','DXB>FRA','HKG>NRT'];
+  PAIRS.forEach((pStr,k)=>{
+    const [aName,bName]=pStr.split('>');
+    const A=latLonToVec(CITIES[aName][0], CITIES[aName][1], R);
+    const B=latLonToVec(CITIES[bName][0], CITIES[bName][1], R);
+    const pts = greatCirclePts(A, B, 64, 0.55);
+    // glowing static line
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+    const line = new THREE.Line(lineGeo, arcMat);
+    spin.add(line);
+    // moving packet (small glowing sprite)
+    const pkt = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.012,R*0.012), 8, 8), new THREE.MeshBasicMaterial({ color:0x9fd8ff }));
+    spin.add(pkt);
+    // hub dots at both ends
+    [A,B].forEach(P=>{
+      const h=new THREE.Mesh(new THREE.SphereGeometry(R*0.018,12,12), hubMat);
+      h.position.copy(P.clone().normalize().multiplyScalar(R*1.004));
+      spin.add(h);
+    });
+    arcs.push({ pts, pkt, speed: 0.00018 + Math.random()*0.00022, phase: Math.random() });
+  });
+
+  window.addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+  // animate sun slowly
+  const sun = globe.material.uniforms.uSun.value;
+
+  // ---- live HUD numbers driven from the network ----
+  let hudT = 0;
+  function rndPulse(base, amp, freq, t){ return base + Math.sin(t*freq)*amp*0.5 + amp*0.5*(0.5*Math.sin(t*freq*2.7)+0.5); }
+  const el = id => document.getElementById(id);
+  const baseTons = 8400;
+  function updateHud(t){
+    el('vFlights').textContent = arcs.length + (Math.sin(t*0.0007)>0 ? 1 : 0);
+    el('vTons').textContent = Math.round(rndPulse(baseTons, 600, 0.0008, t)).toLocaleString();
+    el('vLat').textContent = (2.4 + Math.sin(t*0.0009)*0.5).toFixed(1);
+    const onTime = (96 + Math.sin(t*0.0005)*2.2).toFixed(1);
+    el('vOnTime').textContent = onTime + '%';
+    el('dOnTime').textContent = (+onTime >= 96) ? 'rolling 24h' : 'rolling 24h';
+    el('dFlights').textContent = (Math.sin(t*0.0004) > 0 ? '▲ ' : '▼ ') + (1 + Math.floor(Math.abs(Math.sin(t*0.0009))*3)) + ' vs last hr';
+  }
+  function loop(t){
+    const a = t*0.00006;
+    sun.set(Math.cos(a), 0.25, Math.sin(a)).normalize();
+    // spin the planet on its tilted axis — continents sweep through the world-fixed terminator
+    spin.rotation.y = t * 0.00038;
+    // flow packets along arcs
+    for(const ar of arcs){
+      const f = ((t*ar.speed + ar.phase) % 1) * (ar.pts.length-1);
+      const i = Math.floor(f), frac = f - i;
+      const p0 = ar.pts[i], p1 = ar.pts[Math.min(i+1, ar.pts.length-1)];
+      ar.pkt.position.copy(p0).lerp(p1, frac);
+    }
+    if (t - hudT > 120) { updateHud(t); hudT = t; }
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  console.log('globe running');
+} catch(e){
+  const el=document.getElementById('err');
+  el.style.display='grid';
+  el.textContent = 'RENDER ERROR: ' + (e && e.stack || e);
+}
+</script>
+</body>
+</html>
