@@ -9,6 +9,8 @@ great-circle flight arcs, and a glassmorphic live-data HUD.
 
 ![Earth Logistics Dashboard Demo](earth_logistics_dashboard_final.gif)
 
+*Non-thinking model iteration: `qwen3.5-0.8b-mlx` (5,704 tokens, 38.99s) — see memory for evaluation notes*
+
 ```
 ├── index.html   <- the entire project lives in this one self-contained file
 ├── .gitignore
